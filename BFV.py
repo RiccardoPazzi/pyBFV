@@ -122,6 +122,13 @@ def int2base(n, b):
     else:
         return [n % b] + int2base(n // b, b)
 
+
+def base2int(base_vector, b):
+    result = 0
+    for idx, value in enumerate(base_vector):
+        result += value * (b ** idx)
+    return result
+
     # ------ Functions for keygen, encryption and decryption ------
 
 
