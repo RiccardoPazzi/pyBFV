@@ -62,7 +62,7 @@ class EncryptedMatrix:
 
         print(self.poly_matrix)
 
-    def dot2D(self, other, rlk):
+    def dot(self, other, rlk):
         """
         Dot product between two encrypted tensors, relinearization is automatically performed
         :param other:
@@ -73,7 +73,7 @@ class EncryptedMatrix:
         # The shape will be calculated as usual for the matrix product A x B = C where A.shape = [3,4] B.shape = [4,1]
         # Therefore C.shape will be [3,1]
         if len(self.shape) != 4:
-            raise NotImplementedError("dot2D only supports 2D matrix product, for batched product use batched_dot2D")
+            raise NotImplementedError("dot only supports 2D matrix product, for batched product use batched_dot2D")
         # Check the dimensions are matching
         if not (self.shape[-3] == other.shape[0]):
             raise ValueError(f"Matrix shapes {self.shape} and {other.shape} are not matching!")
@@ -119,6 +119,34 @@ class EncryptedMatrix:
         e_result = EncryptedMatrix(output_matrix, self.packed_parameters)
         return e_result
 
+    def scale(self, encrypted_scale_factor: np.ndarray, rlk):
+        """
+        Scales the input matrix using a scale factor encrypted under the same key pk
+        :param encrypted_scale_factor: encrypted integer representing the scale factor
+        :param rlk: Relinearization key
+        :return: encrypted scaled matrix
+        """
+        poly_shape = self.shape[:-2]
+        result = np.zeros(self.shape)
+        for idx in np.ndindex(poly_shape):
+            # Extract ciphertexts from matrix
+            ct0 = self.poly_matrix[idx + (0,)]
+            ct1 = self.poly_matrix[idx + (1,)]
+            scale0 = encrypted_scale_factor[0]
+            scale1 = encrypted_scale_factor[1]
+            # Multiply with scale factor
+            scaled_ct0, scaled_ct1 = mul_cipher_v2((ct0, ct1), (scale0, scale1), self.q, self.t, self.p, self.poly_mod,
+                                                   rlk[0], rlk[1])
+
+            # Add ciphertexts to result, once more we need to pad with zeroes
+            scaled_ct0 = np.pad(scaled_ct0, (0, self.size - len(scaled_ct0)), constant_values=0)
+            scaled_ct1 = np.pad(scaled_ct1, (0, self.size - len(scaled_ct1)), constant_values=0)
+            result[idx + (0,)] += scaled_ct0
+            result[idx + (1,)] += scaled_ct1
+        # Convert result into EncryptedMatrix
+        e_result = EncryptedMatrix(result, self.packed_parameters)
+        return e_result
+
     def __rmul__(self, other):
         if not (isinstance(other, int) or isinstance(other, np.int64)):
             print("ERROR! Cannot use * operator with elements other than integers")
@@ -136,8 +164,10 @@ class EncryptedMatrix:
             ct1 = self.poly_matrix[idx + (1,)]
             ct0_other = other.poly_matrix[idx + (0,)]
             ct1_other = other.poly_matrix[idx + (1,)]
+
             # Sum the two ciphertexts
             sum_ct0, sum_ct1 = add_cipher((ct0, ct1), (ct0_other, ct1_other), self.q, self.poly_mod)
+
             # Add ciphertexts to result, once more we need to pad with zeroes
             sum_ct0 = np.pad(sum_ct0, (0, self.size - len(sum_ct0)), constant_values=0)
             sum_ct1 = np.pad(sum_ct1, (0, self.size - len(sum_ct1)), constant_values=0)
@@ -166,13 +196,15 @@ if __name__ == "__main__":
     # polynomial modulus degree, SIZE parameter
     n = 2 ** 4
     # ciphertext modulus, MODULUS parameter
-    q = 2 ** 15
-    # plaintext modulus
-    t = 4
+    q = 2 ** 25
+    # plaintext modulus, maximum value for plaintext in the worst case
+    # Some operations might still produce the expected results when the number exceeds t due to base decomposition
+    # However if all operations consist of sums this will for sure produce a wrong value if the total is greater than t
+    t = 128
     # base for relin_v1
     T = int(np.sqrt(q))
-    # modulusswitching modulus
-    p = q ** 3
+    # modulus switching modulus
+    p = q
     # Polynomial modulus
     poly_mod = np.array([1] + [0] * (n - 1) + [1])
     # Std for encryption
@@ -210,6 +242,6 @@ if __name__ == "__main__":
     print(decrypted_matrix)
 
     print("DOT PRODUCT CHECK:")
-    c_4 = c_1.dot2D(c_2, rlk)
+    c_4 = c_1.dot(c_2, rlk)
     decrypted_matrix = c_4.decrypt(sk)
     print(decrypted_matrix)
