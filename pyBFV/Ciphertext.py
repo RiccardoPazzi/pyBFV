@@ -2,7 +2,7 @@
 This is a utility class that allows to use the standard multiplication (*) and sum (+) operations on encrypted
 ciphertext
 """
-from BFV import *
+from pyBFV.BFV import *
 import numpy as np
 
 BASE = 2
@@ -44,7 +44,7 @@ class EncryptedMatrix:
         self.packed_parameters = parameters
         np_input = np.array(int_vector, dtype=np.int64)
         self.shape = np_input.shape + (2, self.size)
-        self.poly_matrix = np.zeros(self.shape)
+        self.poly_matrix = np.zeros(self.shape, dtype=np.int64)
         self.initialized = True
         # The matrix must contain two polynomials of degree size - 1, so we create a zero matrix with the correct shape
 
@@ -60,7 +60,6 @@ class EncryptedMatrix:
             self.poly_matrix[idx + (0,)] += ct0
             self.poly_matrix[idx + (1,)] += ct1
 
-        print(self.poly_matrix)
 
     def dot(self, other, rlk):
         """
@@ -199,7 +198,10 @@ if __name__ == "__main__":
     q = 2 ** 25
     # plaintext modulus, maximum value for plaintext in the worst case
     # Some operations might still produce the expected results when the number exceeds t due to base decomposition
-    # However if all operations consist of sums this will for sure produce a wrong value if the total is greater than t
+    # However t for sure limits the number of sums to t, because even with binary decomposition the 1's added will
+    # eventually surpass e.g. 128
+    # Limiting the number of sums to t will in turn limit the dot product which can only operate on tensors of the form
+    # (.. x t) . (t x ..) where t is the dimension which will be eliminated from both tensors
     t = 128
     # base for relin_v1
     T = int(np.sqrt(q))
@@ -218,18 +220,21 @@ if __name__ == "__main__":
 
     int_matrix = [[1, 2], [3, 4]]
     int_matrix2 = [[1, 2], [3, 4]]
+    int_vector = [[1], [5]]  # Column vector
 
     c_1 = EncryptedMatrix()
     c_2 = EncryptedMatrix()
+    cv_1 = EncryptedMatrix()
+    scale = 5
+    scale_poly = int2base(scale, BASE)
+    e_scale = encrypt(pk, n, q, t, poly_mod, scale_poly, std1)
 
     c_1.encrypts(int_matrix, params)
     c_2.encrypts(int_matrix2, params)
+    cv_1.encrypts(int_vector, params)
     c_3 = c_1 + c_2
 
-    print("ENCRYPTED MATRIX IS:")
-    print(c_1.poly_matrix)
     print("CHECKING ORIGINAL MATRIX MATCHES DECRYPTED MATRIX:")
-    print(int_matrix)
     decrypted_matrix = c_1.decrypt(sk)
     print(decrypted_matrix)
     if np.array_equal(int_matrix, decrypted_matrix):
@@ -237,11 +242,45 @@ if __name__ == "__main__":
     else:
         print("ERROR: FAILED!")
 
+    print("\n---------------------------------\n")  # Visual separator
+
     print("CHECK SUM FUNCTION:")
     decrypted_matrix = c_3.decrypt(sk)
     print(decrypted_matrix)
+    if np.array_equal(np.array(int_matrix)+np.array(int_matrix2), decrypted_matrix):
+        print("SUCCESS!")
+    else:
+        print("ERROR: FAILED!")
+
+    print("\n---------------------------------\n")  # Visual separator
 
     print("DOT PRODUCT CHECK:")
     c_4 = c_1.dot(c_2, rlk)
     decrypted_matrix = c_4.decrypt(sk)
     print(decrypted_matrix)
+    if np.array_equal(np.array(int_matrix).dot(np.array(int_matrix2)), decrypted_matrix):
+        print("SUCCESS!")
+    else:
+        print("ERROR: FAILED!")
+
+    print("\n---------------------------------\n")  # Visual separator
+
+    print("SCALING CHECK:")
+    c_6 = c_1.scale(e_scale, rlk)
+    decrypted_matrix = c_6.decrypt(sk)
+    print(decrypted_matrix)
+    if np.array_equal(scale * np.array(int_matrix), decrypted_matrix):
+        print("SUCCESS!")
+    else:
+        print("ERROR: FAILED!")
+
+    print("\n---------------------------------\n")  # Visual separator
+
+    print("MATRIX-VECTOR DOT PRODUCT CHECK:")
+    c_5 = c_1.dot(cv_1, rlk)
+    decrypted_matrix = c_5.decrypt(sk)
+    print(decrypted_matrix)
+    if np.array_equal(np.array(int_matrix).dot(np.array(int_vector)), decrypted_matrix):
+        print("SUCCESS!")
+    else:
+        print("ERROR: FAILED!")

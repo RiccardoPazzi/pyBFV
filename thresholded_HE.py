@@ -2,8 +2,7 @@
 
 # Press Maiusc+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-import numpy as np
-from BFV import *
+from pyBFV.BFV import *
 
 
 # Press the green button in the gutter to run the script.
@@ -12,13 +11,13 @@ if __name__ == '__main__':
     # polynomial modulus degree, SIZE parameter
     n = 2 ** 2
     # ciphertext modulus, MODULUS parameter
-    q = 2 ** 14
+    q = 2 ** 11
     # plaintext modulus
     t = 8
     # base for relin_v1
     T = int(np.sqrt(q))
     # modulusswitching modulus
-    p = q ** 3
+    p = q
 
     # polynomial modulus
     poly_mod = np.array([1] + [0] * (n - 1) + [1])

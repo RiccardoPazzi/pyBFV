@@ -126,6 +126,8 @@ def int2base(n, b):
 def base2int(base_vector, b):
     result = 0
     for idx, value in enumerate(base_vector):
+        """if idx > 15 and value > 0:
+                    print("BREAKPOINT")"""
         result += value * (b ** idx)
     return result
 
