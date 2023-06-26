@@ -546,7 +546,7 @@ def compute_final_eval_key(h0_prime_list, h1_prime_list, h1_sum, size, poly_mod,
         sum_h1_p = polyadd_wm(sum_h1_p, h1, poly_mod) % new_modulus
     # The evaluation key result is sum(h0') + sum(h1'), h1
     sum_h0_h1 = polyadd_wm(sum_h0_p, sum_h1_p, poly_mod) % new_modulus
-    return sum_h0_h1, h1_sum
+    return np.int64(sum_h0_h1), np.int64(h1_sum)
 
 
 # ==============================================================

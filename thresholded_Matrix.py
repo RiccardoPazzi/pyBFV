@@ -5,9 +5,9 @@ from pyBFV.Ciphertext import EncryptedMatrix
 # polynomial modulus degree, SIZE parameter
 n = 2 ** 4
 # ciphertext modulus, MODULUS parameter
-q = 2 ** 30
+q = 2 ** 10
 # plaintext modulus
-t = 8
+t = 64
 # base for relin_v1
 T = int(np.sqrt(q))
 # modulusswitching modulus
@@ -16,9 +16,9 @@ p = q
 # polynomial modulus
 poly_mod = np.array([1] + [0] * (n - 1) + [1])
 # standard deviation for the error in the encryption, common value 3.2
-std1 = 1
+std1 = 0
 # standard deviation for the error in the evaluateKeyGen_v2
-std2 = 1
+std2 = 0
 
 
 def TwoPartyKeyGen():
