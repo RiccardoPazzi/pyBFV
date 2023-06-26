@@ -19,12 +19,12 @@ class EncryptedMatrix:
         :param parameters:
         """
         if from_array is None:
-            self.initialized = False # When false the matrix can encrypt an integer vector
+            self.initialized = False  # When false the matrix can encrypt an integer vector
             return
         self.pk, self.size, self.q, self.t, self.p, self.poly_mod, self.std1 = parameters
         self.packed_parameters = parameters
         self.shape = from_array.shape
-        self.poly_matrix = from_array
+        self.poly_matrix = np.array(from_array, dtype=np.int64)
         self.initialized = True
 
     def encrypts(self, int_vector, parameters: tuple):
@@ -59,7 +59,6 @@ class EncryptedMatrix:
             ct1 = np.pad(ct1, (0, self.size - len(ct1)), constant_values=0)
             self.poly_matrix[idx + (0,)] += ct0
             self.poly_matrix[idx + (1,)] += ct1
-
 
     def dot(self, other, rlk):
         """
@@ -98,7 +97,8 @@ class EncryptedMatrix:
                 ct1_1 = other.poly_matrix[second_idx + (1,)]
 
                 # Multiply encrypted polynomials
-                mul_poly = mul_cipher_v2((ct0_0, ct1_0), (ct0_1, ct1_1), self.q, self.t, self.p, self.poly_mod, rlk[0], rlk[1])
+                mul_poly = mul_cipher_v2((ct0_0, ct1_0), (ct0_1, ct1_1), self.q, self.t, self.p, self.poly_mod, rlk[0],
+                                         rlk[1])
 
                 # Sum all the mul poly into one polynomial
                 result_poly = add_cipher(result_poly, mul_poly, self.q, self.poly_mod)
@@ -188,6 +188,35 @@ class EncryptedMatrix:
             out_matrix[idx] += base2int(decrypted_poly, BASE)
         return out_matrix
 
+    def distributed_decrypt(self, secret_key, last_step=False):
+        out_shape = self.shape[:-2]
+        # If we are at the last step we return the decrypted matrix,
+        # otherwise we return the EncryptedMatrix object containing the partially decrypted matrix
+        if last_step:
+            out_matrix = np.zeros(out_shape, dtype=np.int64)
+            for idx in np.ndindex(out_shape):
+                ct0 = self.poly_matrix[idx + (0,)]
+                ct1 = self.poly_matrix[idx + (1,)]
+                # Generate the decrypted polynomial, which has to be converted into an integer
+                decrypted_poly = distributed_decryption_step((ct0, ct1), secret_key, self.q, self.t, self.poly_mod,
+                                                             last_step)
+                out_matrix[idx] += base2int(decrypted_poly, BASE)
+            return out_matrix
+
+        else:
+            out_matrix = np.zeros(self.shape, dtype=np.int64)
+            for idx in np.ndindex(out_shape):
+                ct0 = self.poly_matrix[idx + (0,)]
+                ct1 = self.poly_matrix[idx + (1,)]
+                # Generate the decrypted polynomial, which has to be converted into an integer
+                decrypted_poly = distributed_decryption_step((ct0, ct1), secret_key, self.q, self.t, self.poly_mod,
+                                                             last_step)
+                out_matrix[idx + (0,)] += decrypted_poly[0]
+                out_matrix[idx + (1,)] += decrypted_poly[1]
+                # Convert result into EncryptedMatrix because we return a partial decryption
+            e_result = EncryptedMatrix(out_matrix, self.packed_parameters)
+            return e_result
+
 
 if __name__ == "__main__":
     # Running this module will run tests
@@ -247,7 +276,7 @@ if __name__ == "__main__":
     print("CHECK SUM FUNCTION:")
     decrypted_matrix = c_3.decrypt(sk)
     print(decrypted_matrix)
-    if np.array_equal(np.array(int_matrix)+np.array(int_matrix2), decrypted_matrix):
+    if np.array_equal(np.array(int_matrix) + np.array(int_matrix2), decrypted_matrix):
         print("SUCCESS!")
     else:
         print("ERROR: FAILED!")

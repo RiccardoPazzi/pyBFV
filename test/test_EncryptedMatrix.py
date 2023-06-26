@@ -27,7 +27,7 @@ class MyTestCase(unittest.TestCase):
         # print(f"BASE decomposition will work up to {2 ** self.n}")
 
         # ciphertext modulus, MODULUS parameter
-        self.q = 2 ** 27
+        self.q = 2 ** 29
 
         # plaintext modulus
         # Some operations might still produce the expected results when the number exceeds t due to base decomposition
@@ -37,7 +37,7 @@ class MyTestCase(unittest.TestCase):
         # (.. x t) . (t x ..) where t is the dimension which will be eliminated from both tensors
         self.t = 64
         # modulus switching modulus
-        self.p = self.q
+        self.p = self.q/4
         # Polynomial modulus
         self.poly_mod = np.array([1] + [0] * (self.n - 1) + [1])
         # Std for encryption
