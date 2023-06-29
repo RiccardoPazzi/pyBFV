@@ -128,7 +128,7 @@ def base2int(base_vector, b):
     for idx, value in enumerate(base_vector):
         """if idx > 15 and value > 0:
                     print("BREAKPOINT")"""
-        result += value * (b ** idx)
+        result += np.int64(value * (b ** idx))
     return result
 
     # ------ Functions for keygen, encryption and decryption ------

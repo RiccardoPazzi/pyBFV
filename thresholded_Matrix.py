@@ -3,7 +3,7 @@ from pyBFV.Ciphertext import EncryptedMatrix
 
 # PARAMETER SELECTION
 # polynomial modulus degree, SIZE parameter
-n = 2 ** 4
+n = 2 ** 6
 # ciphertext modulus, MODULUS parameter
 q = 2 ** 10
 # plaintext modulus
@@ -11,7 +11,7 @@ t = 64
 # base for relin_v1
 T = int(np.sqrt(q))
 # modulusswitching modulus
-p = q
+p = q ** 2
 
 # polynomial modulus
 poly_mod = np.array([1] + [0] * (n - 1) + [1])
