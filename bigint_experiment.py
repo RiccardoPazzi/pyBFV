@@ -4,11 +4,11 @@ from pyBFV.BFV_bigint import *
 if __name__ == '__main__':
     # Scheme's params
     # polynomial modulus degree, SIZE parameter
-    n = 2 ** 4
+    n = 2 ** 5
     # ciphertext modulus, MODULUS parameter
-    q = 2 ** 33
+    q = 2 ** 60
     # plaintext modulus
-    t = 8
+    t = 2 ** 3
 
     # modulusswitching modulus
     p = q ** 3
@@ -17,9 +17,9 @@ if __name__ == '__main__':
     poly_mod = np.array([1] + [0] * (n - 1) + [1])
 
     # standard deviation for the error in the encryption, common value 3.2
-    std1 = 0
+    std1 = 1
     # standard deviation for the error in the evaluateKeyGen_v2
-    std2 = 0
+    std2 = 1
 
     # Multiparty procedures with 2 parties
 
@@ -31,9 +31,9 @@ if __name__ == '__main__':
     print(rlk0, rlk1)
 
     # PARTY 1 message
-    m1 = int2base(17, 2)
+    m1 = int2base(127, 2)
     # PARTY 2 message
-    m2 = int2base(2, 2)
+    m2 = int2base(33, 2)
     print(m1, m2)
 
     ct1 = encrypt(pk, n, q, t, poly_mod, m1, std1)
@@ -45,6 +45,8 @@ if __name__ == '__main__':
 
     # Multiplication experiment
     e_mult = mul_cipher_v2(ct1, ct2, q, t, p, poly_mod, rlk0, rlk1)
+    e_mult = mul_cipher_v2(e_mult, ct2, q, t, p, poly_mod, rlk0, rlk1)
+    e_mult = mul_cipher_v2(e_mult, ct2, q, t, p, poly_mod, rlk0, rlk1)
     d_mult = decrypt(sk, q, t, poly_mod, e_mult)
     e_sum = add_cipher(ct1, ct2, q, poly_mod)
     e_sum = add_cipher(e_sum, ct1, q, poly_mod)
@@ -52,5 +54,5 @@ if __name__ == '__main__':
     d_sum = decrypt(sk, q, t, poly_mod, e_sum)
 
     # Multiplication result
-    print(d_mult)
+    print(base2int(d_mult, 2))
     print(d_sum)

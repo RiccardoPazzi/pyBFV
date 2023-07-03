@@ -46,8 +46,7 @@ def polymul(x, y, modulus, poly_mod):
     Returns:
         A polynomial in Z_modulus[X]/(poly_mod).
     """
-    return bigint.polydiv(bigint.polymul(x, y) %
-                          modulus, poly_mod)[1] % modulus
+    return bigint.polydiv(bigint.polymul(x, y), poly_mod)[1] % modulus
 
 
 def polyadd(x, y, modulus, poly_mod):
@@ -59,8 +58,7 @@ def polyadd(x, y, modulus, poly_mod):
     Returns:
         A polynomial in Z_modulus[X]/(poly_mod).
     """
-    return bigint.polydiv(poly.polyadd(x, y) %
-                          modulus, poly_mod)[1] % modulus
+    return bigint.polydiv(poly.polyadd(x, y), poly_mod)[1] % modulus
 
 
 # ==============================================================
@@ -75,7 +73,7 @@ def gen_binary_poly(size):
         array of coefficients with the coeff[i] being
         the coeff of x ^ i.
     """
-    return np.random.randint(-1, 2, size, dtype=np.int64)
+    return np.array(np.random.randint(-1, 2, size), dtype=object)
 
 
 def gen_uniform_poly(size, modulus):
@@ -100,7 +98,7 @@ def gen_normal_poly(size, mean, std):
         array of coefficients with the coeff[i] being
         the coeff of x ^ i.
     """
-    return np.int64(np.random.normal(mean, std, size=size))
+    return np.array(np.int64(np.random.normal(mean, std, size=size)), dtype=object)
 
 
 # ==============================================================
@@ -189,12 +187,10 @@ def encrypt(pk, size, q, t, poly_mod, m, std1):
     e1 = gen_normal_poly(size, 0, std1)
     e2 = gen_normal_poly(size, 0, std1)
     u = gen_binary_poly(size)
+    prod = polymul(pk[0], u, q, poly_mod)
     ct0 = polyadd(
-        polyadd(
-            polymul(pk[0], u, q, poly_mod),
-            e1, q, poly_mod),
-        scaled_m, q, poly_mod
-    )
+        polyadd(prod, e1, q, poly_mod),
+        scaled_m, q, poly_mod)
     ct1 = polyadd(
         polymul(pk[1], u, q, poly_mod),
         e2, q, poly_mod
