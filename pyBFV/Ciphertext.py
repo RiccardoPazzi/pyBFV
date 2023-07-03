@@ -63,6 +63,7 @@ class EncryptedMatrix:
     def dot(self, other, rlk):
         """
         Dot product between two encrypted tensors, relinearization is automatically performed
+        :param sk_debug:
         :param other:
         :param rlk: Relinearization key tuple (rlk0, rlk1)
         :return: The dot product
@@ -96,12 +97,19 @@ class EncryptedMatrix:
                 ct0_1 = other.poly_matrix[second_idx + (0,)]
                 ct1_1 = other.poly_matrix[second_idx + (1,)]
 
+                # DEBUGGING MODE
+                # first_poly = decrypt(sk_debug, self.q, self.t, self.poly_mod, (ct0_0, ct1_0))
+                # first_int = base2int(first_poly, BASE)
+                # second_poly = decrypt(sk_debug, self.q, self.t, self.poly_mod, (ct0_1, ct1_1))
+                # second_int = base2int(second_poly, BASE)
+                # expected_result = first_int * second_int
                 # Multiply encrypted polynomials
                 mul_poly = mul_cipher_v2((ct0_0, ct1_0), (ct0_1, ct1_1), self.q, self.t, self.p, self.poly_mod, rlk[0],
                                          rlk[1])
-
                 # Sum all the mul poly into one polynomial
                 result_poly = add_cipher(result_poly, mul_poly, self.q, self.poly_mod)
+                # result_int = base2int(decrypt(sk_debug, self.q, self.t, self.poly_mod, mul_poly), BASE)
+                # result_sum = base2int(decrypt(sk_debug, self.q, self.t, self.poly_mod, result_poly), BASE)
 
             # Extract the two polynomials in the resulting ciphertext
             ct0 = result_poly[0]

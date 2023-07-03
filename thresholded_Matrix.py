@@ -3,11 +3,11 @@ from pyBFV.Ciphertext import EncryptedMatrix
 
 # PARAMETER SELECTION
 # polynomial modulus degree, SIZE parameter
-n = 2 ** 6
+n = 2 ** 3
 # ciphertext modulus, MODULUS parameter
-q = 2 ** 10
+q = 2 ** 8
 # plaintext modulus
-t = 64
+t = 16
 # base for relin_v1
 T = int(np.sqrt(q))
 # modulusswitching modulus
@@ -80,15 +80,15 @@ if __name__ == '__main__':
     c_2.encrypts(int_matrix2, params)
 
     # Product computation
-    c_4 = c_1.dot(c_2, rlk)
+    c_4 = c_1.dot(c_2, rlk, common_sk)
     decrypted_matrix = c_4.decrypt(common_sk)
     print(decrypted_matrix)
     # Another product
-    c_5 = c_1.dot(c_4, rlk)
+    c_5 = c_1.dot(c_4, rlk, common_sk)
     decrypted_matrix = c_5.decrypt(common_sk)
     print(decrypted_matrix)
     # Another product
-    c_5 = c_1.dot(c_5, rlk)
+    c_5 = c_1.dot(c_5, rlk, common_sk)
     decrypted_matrix = c_5.decrypt(common_sk)
     print(decrypted_matrix)
     dec_matrix = c_4.distributed_decrypt(sk)

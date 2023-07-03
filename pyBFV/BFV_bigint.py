@@ -5,7 +5,9 @@ We did it to better understand the inner workings of the [FV12] scheme, so you c
 """
 
 import numpy as np
+import random
 from numpy.polynomial import polynomial as poly
+import pyBFV.bigint_methods as bigint
 
 
 # TODO: Create a class to contain all the methods and CryptoParameters as fields
@@ -18,7 +20,7 @@ def polymul_wm(x, y, poly_mod):
     Returns:
         A polynomial in Z[X]/(poly_mod).
     """
-    return poly.polydiv(poly.polymul(x, y), poly_mod)[1]
+    return bigint.polydiv(bigint.polymul(x, y), poly_mod)[1]
 
 
 def polyadd_wm(x, y, poly_mod):
@@ -29,7 +31,7 @@ def polyadd_wm(x, y, poly_mod):
         Returns:
             A polynomial in Z[X]/(poly_mod).
         """
-    return poly.polydiv(poly.polyadd(x, y), poly_mod)[1]
+    return bigint.polydiv(poly.polyadd(x, y), poly_mod)[1]
 
 
 # ==============================================================
@@ -44,10 +46,8 @@ def polymul(x, y, modulus, poly_mod):
     Returns:
         A polynomial in Z_modulus[X]/(poly_mod).
     """
-    return np.int64(
-        np.round(poly.polydiv(poly.polymul(x, y) %
-                              modulus, poly_mod)[1] % modulus)
-    )
+    return bigint.polydiv(bigint.polymul(x, y) %
+                          modulus, poly_mod)[1] % modulus
 
 
 def polyadd(x, y, modulus, poly_mod):
@@ -59,10 +59,8 @@ def polyadd(x, y, modulus, poly_mod):
     Returns:
         A polynomial in Z_modulus[X]/(poly_mod).
     """
-    return np.int64(
-        np.round(poly.polydiv(poly.polyadd(x, y) %
-                              modulus, poly_mod)[1] % modulus)
-    )
+    return bigint.polydiv(poly.polyadd(x, y) %
+                          modulus, poly_mod)[1] % modulus
 
 
 # ==============================================================
@@ -89,7 +87,7 @@ def gen_uniform_poly(size, modulus):
         array of coefficients with the coeff[i] being
         the coeff of x ^ i.
     """
-    return np.random.randint(0, modulus, size, dtype=np.int64)
+    return np.array([random.randint(0, modulus-1) for _ in range(size)], dtype=object)
 
 
 def gen_normal_poly(size, mean, std):
@@ -126,7 +124,7 @@ def int2base(n, b):
 def base2int(base_vector, b):
     result = 0
     for idx, value in enumerate(base_vector):
-        result += np.int64(value * (b ** idx))
+        result += value * (b ** idx)
     return result
 
     # ------ Functions for keygen, encryption and decryption ------
@@ -149,38 +147,6 @@ def keygen(size, modulus, poly_mod, std1):
     return (b, a), s
 
 
-def evaluate_keygen_v1(sk, size, modulus, T, poly_mod, std2):
-    """Generate a relinearization key using version 1.
-        Args:
-            sk: secret key.
-            size: size of the polynomials.
-            modulus: coefficient modulus.
-            T: base.
-            poly_mod: polynomial modulus.
-            std2: standard deviation for the error distribution.
-        Returns:
-            rlk0, rlk1: relinearization key.
-        """
-    n = len(poly_mod) - 1
-    l = np.int64(np.log(modulus) / np.log(T))
-    rlk0 = np.zeros((l + 1, n), dtype=np.int64)
-    rlk1 = np.zeros((l + 1, n), dtype=np.int64)
-    for i in range(l + 1):
-        a = gen_uniform_poly(size, modulus)
-        e = gen_normal_poly(size, 0, std2)
-        secret_part = T ** i * poly.polymul(sk, sk)
-        b = np.int64(polyadd(
-            polymul_wm(-a, sk, poly_mod),
-            polyadd_wm(-e, secret_part, poly_mod), modulus, poly_mod))
-
-        b = np.int64(np.concatenate((b, [0] * (n - len(b)))))  # pad b
-        a = np.int64(np.concatenate((a, [0] * (n - len(a)))))  # pad a
-
-        rlk0[i] = b
-        rlk1[i] = a
-    return rlk0, rlk1
-
-
 def evaluate_keygen_v2(sk, size, modulus, poly_mod, extra_modulus, std2):
     """Generate a relinearization key using version 2.
         Args:
@@ -196,11 +162,11 @@ def evaluate_keygen_v2(sk, size, modulus, poly_mod, extra_modulus, std2):
     new_modulus = modulus * extra_modulus
     a = gen_uniform_poly(size, new_modulus)
     e = gen_normal_poly(size, 0, std2)
-    secret_part = extra_modulus * poly.polymul(sk, sk)
+    secret_part = extra_modulus * bigint.polymul(sk, sk)
 
-    b = np.int64(polyadd_wm(
+    b = polyadd_wm(
         polymul_wm(-a, sk, poly_mod),
-        polyadd_wm(-e, secret_part, poly_mod), poly_mod)) % new_modulus
+        polyadd_wm(-e, secret_part, poly_mod), poly_mod) % new_modulus
     # b = -a * sk - e + p * sk^2
     return b, a
 
@@ -217,7 +183,7 @@ def encrypt(pk, size, q, t, poly_mod, m, std1):
     Returns:
         Tuple representing a ciphertext.
     """
-    m = np.array(m + [0] * (size - len(m)), dtype=np.int64) % t
+    m = np.array(m + [0] * (size - len(m)), dtype=object) % t
     delta = q // t
     scaled_m = delta * m
     e1 = gen_normal_poly(size, 0, std1)
@@ -252,8 +218,10 @@ def decrypt(sk, q, t, poly_mod, ct):
         polymul(ct[1], sk, q, poly_mod),
         ct[0], q, poly_mod
     )
-    decrypted_poly = np.round(t * scaled_pt / q) % t
-    return np.int64(decrypted_poly)
+
+    decrypted_poly = bigint.roundintdiv(t * scaled_pt, q) % t
+    decryption_debug = (t * scaled_pt / q) % t
+    return decrypted_poly
 
 
 # ==============================================================
@@ -273,7 +241,7 @@ def add_plain(ct, pt, q, t, poly_mod):
     """
     size = len(poly_mod) - 1
     # encode the integer into a plaintext polynomial
-    m = np.array(pt + [0] * (size - len(pt)), dtype=np.int64) % t
+    m = np.array(pt + [0] * (size - len(pt)), dtype=object) % t
     delta = q // t
     scaled_m = delta * m
     new_ct0 = polyadd(ct[0], scaled_m, q, poly_mod)
@@ -307,7 +275,7 @@ def mul_plain(ct, pt, q, t, poly_mod):
     """
     size = len(poly_mod) - 1
     # encode the integer polynomial into a plaintext vector of size=size
-    m = np.array(pt + [0] * (size - len(pt)), dtype=np.int64) % t
+    m = np.array(pt + [0] * (size - len(pt)), dtype=object) % t
     new_c0 = polymul(ct[0], m, q, poly_mod)
     new_c1 = polymul(ct[1], m, q, poly_mod)
     return (new_c0, new_c1)
@@ -325,56 +293,11 @@ def multiplication_coeffs(ct1, ct2, q, t, poly_mod):
             Triplet (c0,c1,c2) encoding the multiplied ciphertexts.
         """
 
-    c_0 = np.int64(np.round(polymul_wm(ct1[0], ct2[0], poly_mod) * t / q)) % q
-    c_1 = np.int64(np.round(
-        polyadd_wm(polymul_wm(ct1[0], ct2[1], poly_mod), polymul_wm(ct1[1], ct2[0], poly_mod), poly_mod) * t / q)) % q
-    c_2 = np.int64(np.round(polymul_wm(ct1[1], ct2[1], poly_mod) * t / q)) % q
+    c_0 = bigint.roundintdiv(polymul_wm(ct1[0], ct2[0], poly_mod) * t, q) % q
+    c_1 = bigint.roundintdiv(
+        polyadd_wm(polymul_wm(ct1[0], ct2[1], poly_mod), polymul_wm(ct1[1], ct2[0], poly_mod), poly_mod) * t, q) % q
+    c_2 = bigint.roundintdiv(polymul_wm(ct1[1], ct2[1], poly_mod) * t, q) % q
     return c_0, c_1, c_2
-
-
-def mul_cipher_v1(ct1, ct2, q, t, T, poly_mod, rlk0, rlk1):
-    """Multiply two ciphertexts.
-    Args:
-        ct1: first ciphertext.
-        ct2: second ciphertext
-        q: ciphertext modulus.
-        t: plaintext modulus.
-        T: base
-        poly_mod: polynomial modulus.
-        rlk0, rlk1: output of the EvaluateKeygen_v1 function.
-    Returns:
-        Tuple representing a ciphertext.
-    """
-    n = len(poly_mod) - 1
-    l = np.int64(np.log(q) / np.log(T))  # l = log_T(q)
-
-    c_0, c_1, c_2 = multiplication_coeffs(ct1, ct2, q, t, poly_mod)
-    c_2 = np.int64(np.concatenate((c_2, [0] * (n - len(c_2)))))  # pad
-
-    # Next, we decompose c_2 in base T:
-    # more precisely, each coefficient of c_2 is decomposed in base T such that c_2 = sum T**i * c_2(i).
-    Reps = np.zeros((n, l + 1), dtype=np.int64)
-    for i in range(n):
-        rep = int2base(c_2[i], T)
-        rep2 = rep + [0] * (l + 1 - len(rep))  # pad with 0
-        Reps[i] = np.array(rep2, dtype=np.int64)
-    # Each row Reps[i] is the base T representation of the i-th coefficient c_2[i].
-    # The polynomials c_2(j) are given by the columns Reps[:,j].
-
-    c_20 = np.zeros(shape=n)
-    c_21 = np.zeros(shape=n)
-    # Here we compute the sums: rlk[j][0] * c_2(j) and rlk[j][1] * c_2(j)
-    for j in range(l + 1):
-        c_20 = polyadd_wm(c_20, polymul_wm(rlk0[j], Reps[:, j], poly_mod), poly_mod)
-        c_21 = polyadd_wm(c_21, polymul_wm(rlk1[j], Reps[:, j], poly_mod), poly_mod)
-
-    c_20 = np.int64(np.round(c_20)) % q
-    c_21 = np.int64(np.round(c_21)) % q
-
-    new_c0 = np.int64(polyadd_wm(c_0, c_20, poly_mod)) % q
-    new_c1 = np.int64(polyadd_wm(c_1, c_21, poly_mod)) % q
-
-    return new_c0, new_c1
 
 
 def mul_cipher_v2(ct1, ct2, q, t, p, poly_mod, rlk0, rlk1):
@@ -393,11 +316,11 @@ def mul_cipher_v2(ct1, ct2, q, t, p, poly_mod, rlk0, rlk1):
     """
     c_0, c_1, c_2 = multiplication_coeffs(ct1, ct2, q, t, poly_mod)
 
-    c_20 = np.int64(np.round(polymul_wm(c_2, rlk0, poly_mod) / p)) % q
-    c_21 = np.int64(np.round(polymul_wm(c_2, rlk1, poly_mod) / p)) % q
+    c_20 = bigint.roundintdiv(polymul_wm(c_2, rlk0, poly_mod), p) % q
+    c_21 = bigint.roundintdiv(polymul_wm(c_2, rlk1, poly_mod), p) % q
 
-    new_c0 = np.int64(polyadd_wm(c_0, c_20, poly_mod)) % q
-    new_c1 = np.int64(polyadd_wm(c_1, c_21, poly_mod)) % q
+    new_c0 = polyadd_wm(c_0, c_20, poly_mod) % q
+    new_c1 = polyadd_wm(c_1, c_21, poly_mod) % q
     return new_c0, new_c1
 
 
@@ -544,7 +467,7 @@ def compute_final_eval_key(h0_prime_list, h1_prime_list, h1_sum, size, poly_mod,
         sum_h1_p = polyadd_wm(sum_h1_p, h1, poly_mod) % new_modulus
     # The evaluation key result is sum(h0') + sum(h1'), h1
     sum_h0_h1 = polyadd_wm(sum_h0_p, sum_h1_p, poly_mod) % new_modulus
-    return np.int64(sum_h0_h1), np.int64(h1_sum)
+    return np.array(sum_h0_h1, dtype=object), np.array(h1_sum, dtype=object)
 
 
 # ==============================================================
@@ -571,8 +494,8 @@ def distributed_decryption_step(ctxt, sk, q, t, poly_mod, last_step=False):
     ), ctxt[1])
     if last_step:
         # De-scale the message and return the result
-        decrypted_poly = np.round(t * new_ctxt[0] / q) % t
-        return np.int64(decrypted_poly)
+        decrypted_poly = bigint.roundintdiv(t * new_ctxt[0], q) % t
+        return decrypted_poly
     else:
         # Return partial result, the message is still scaled
-        return np.int64(new_ctxt)
+        return new_ctxt

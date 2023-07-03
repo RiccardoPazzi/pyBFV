@@ -17,12 +17,14 @@ def generate_int(in_range: tuple):
 
 class MyTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        # Setting up the scheme parameters
-        self.desired_shape = (20, 20)
-        self.desired_range = (0, 100)
+        # Setting up the scheme
+        # PARAMETERS MUST ADHERE TO THE FORMULA HERE:
+        # https://bit-ml.github.io/blog/post/homomorphic-encryption-toy-implementation-in-python/
+        self.desired_shape = (3, 3)
+        self.desired_range = (0, 4)
         # polynomial modulus degree, SIZE parameter
         # Limits the max number representable in base 2 (2 ^ n - 1)
-        self.n = 2 ** 5
+        self.n = 2 ** 3
         # 2 ** 6 doesn't work. Max parameters are 2 ** 5, q = 2^27, t = 64
         # print(f"BASE decomposition will work up to {2 ** self.n}")
 
@@ -35,9 +37,9 @@ class MyTestCase(unittest.TestCase):
         # eventually surpass e.g. 128
         # Limiting the number of sums to t will in turn limit the dot product which can only operate on tensors of the form
         # (.. x t) . (t x ..) where t is the dimension which will be eliminated from both tensors
-        self.t = 64
+        self.t = 4
         # modulus switching modulus
-        self.p = self.q/4
+        self.p = self.q
         # Polynomial modulus
         self.poly_mod = np.array([1] + [0] * (self.n - 1) + [1])
         # Std for encryption
