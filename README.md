@@ -21,3 +21,12 @@ Simple operations using the BFV_bigint module
 #### This library is a demo, do not use it in applications where security is necessary.
 Even though it's a faithful implementation of BFV some of the methods used for performance and practicality
 reasons are not designed to be secure (e.g. the random library).
+
+### CREDITS
+The implementation of thresholded functionalities, matrix operations and the translation to Python big integers is my own.
+However for the basic BFV functionalities and relinearization I used the work from:
+https://gist.github.com/youben11/f00bc95c5dde5e11218f14f7110ad289
+and
+https://bit-ml.github.io/blog/post/homomorphic-encryption-toy-implementation-in-python/
+
+Which saved me a lot of time since everything didn't have to be implemented from scratch :)
